@@ -251,10 +251,10 @@ def summarize(t):
 
 
 def main():
-    want = sys.argv[1:] or ["us", "cn", "gold", "bond"]
+    want = sys.argv[1:] or ["us", "cn", "gold", "bond", "cnetf"]
     # us 用 QQQ（新浪美股日线）；cn 用中证红利低波动指数本身（2006 起 20.9 年）；
     # gold 用沪金主连 AU0（2008 起，人民币/克，有开高低收）；bond 仍是腾讯前复权
-    symbols = {"us": "QQQ", "cn": "H30269", "gold": "AU0", "bond": "sh511260"}
+    symbols = {"us": "QQQ", "cn": "H30269", "gold": "AU0", "bond": "sh511260", "cnetf": "sh512890"}
     snap = {"ohlc": {}, "bruce": None}
     if os.path.exists(OUT):
         try:
@@ -296,10 +296,23 @@ def main():
         print("WARN gest 抓取失败，保留旧快照")
     t = temp()
     if t:
-        snap["temp"] = summarize(t)
-        u, c = snap["temp"]["us"], snap["temp"]["cn"]
-        print("OK   temp   美股 %s %.1f（%+.1f 分） / A股 %s 市场 %.1f 价值 %.1f"
-              % (u["d"], u["total"], u["d13"], c["d"], c["mkt"], c["val"]))
+        summed = summarize(t)
+        # 防回退：本次 temp 比已有快照还旧（jsdelivr 挂了落到本地旧文件）→ 保留旧值不覆盖
+        old = snap.get("temp") or {}
+        try:
+            older = (summed["us"]["d"] < old.get("us", {}).get("d", "") and
+                     summed["cn"]["d"] < old.get("cn", {}).get("d", ""))
+        except Exception:
+            older = False
+        if older:
+            print("WARN temp 本次数据更旧（美股 %s / A股 %s < 已有 %s/%s），保留旧值"
+                  % (summed["us"]["d"], summed["cn"]["d"],
+                     old.get("us", {}).get("d"), old.get("cn", {}).get("d")))
+        else:
+            snap["temp"] = summed
+            u, c = snap["temp"]["us"], snap["temp"]["cn"]
+            print("OK   temp   美股 %s %.1f（%+.1f 分） / A股 %s 市场 %.1f 价值 %.1f"
+                  % (u["d"], u["total"], u["d13"], c["d"], c["mkt"], c["val"]))
     else:
         print("WARN temp 抓取失败，保留旧快照")
     # AISC 元数据随快照一起走（GitHub Actions 仓库里也有 _aisc.json），页面运行时热更新估值卡要用
