@@ -142,17 +142,18 @@ def gc_usd():
     for item in json.loads(raw[lo + 1:hi + 1]):
         try:
             d = str(item["date"])[:10]
-            c = float(item["close"])
+            o, c = float(item["open"]), float(item["close"])
+            h, l = float(item["high"]), float(item["low"])
         except Exception:
             continue
-        if len(d) == 10 and c > 0:
-            rows.append((d, c))
+        if len(d) == 10 and min(o, c, h, l) > 0:
+            rows.append([d, o, c, h, l])
     if len(rows) < 300:
         return None
     rows.sort()
     acc = {}
-    for d, c in rows:
-        acc.setdefault(d[:4], []).append(c)
+    for r in rows:
+        acc.setdefault(r[0][:4], []).append(r[2])
     # 不完整年份剔除（<200 个交易日），避免 2016 年那种只有两个月均价的假点
     years = sorted(y for y in acc if len(acc[y]) >= 200)
     avg = {int(y): round(sum(acc[y]) / len(acc[y])) for y in years}
@@ -161,7 +162,7 @@ def gc_usd():
         avg.setdefault(y, v)
     years = sorted(avg)
     return {"years": years, "gold": [avg[y] for y in years],
-            "last": [rows[-1][0], rows[-1][1]]}
+            "last": [rows[-1][0], rows[-1][2]], "rows": rows}
 
 
 def csi_klines(code, start="20050101"):
@@ -287,8 +288,10 @@ def main():
     g = gc_usd()
     if g:
         snap["gest"] = g
-        print("OK   gest   %d 年均价  最新 %s $%.1f"
-              % (len(g["years"]), g["last"][0], g["last"][1]))
+        # COMEX GC 日线（美元/盎司）：黄金走势图的主基线，替代人民币口径的 AU0
+        snap.setdefault("ohlc", {})["gcu"] = g["rows"]
+        print("OK   gest   %d 年均价  最新 %s $%.1f  GC 日线 %d 根"
+              % (len(g["years"]), g["last"][0], g["last"][1], len(g["rows"])))
     else:
         print("WARN gest 抓取失败，保留旧快照")
     t = temp()
