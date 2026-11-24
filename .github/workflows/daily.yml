@@ -1,0 +1,61 @@
+name: 每日收盘数据更新
+
+on:
+  schedule:
+    - cron: "0 12 * * 1-5"                  # UTC 12:00 = 北京 20:00（A股收盘、中证收盘价已发布）
+  workflow_dispatch: {}                     # 支持手动触发
+  push:
+    branches: [main]                        # ★ 限定分支：否则打标签也会触发，
+    paths: [".github/workflows/daily.yml"]  #   而标签触发是 detached HEAD，push 必失败
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main                         # ★ 显式检出分支，避免 detached HEAD 时 push 报 exit 128
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 抓取收盘快照（腾讯 / 中证指数官网 / 新浪 / 布鲁斯黄金）
+        run: |
+          for i in 1 2 3; do
+            if python snapshot.py; then break; fi
+            echo "snapshot.py 失败(第${i}次), 20s 后重试..."
+            sleep 20
+          done
+
+      - name: 校验关键数据
+        run: |
+          python - <<'PY'
+          import json
+          s = json.load(open("market_snapshot.json", encoding="utf-8"))
+          assert s["ohlc"]["cn"] and len(s["ohlc"]["cn"]) > 5000, "中证红利低波动日线缺失"
+          assert s["ohlc"]["gold"] and len(s["ohlc"]["gold"]) > 4500, "沪金主连日线缺失"
+          assert s.get("gest") and len(s["gest"]["years"]) >= 10, "COMEX 年均价缺失"
+          assert s.get("bruce"), "布鲁斯黄金数据缺失"
+          print("ok", s["meta"], "cn last", s["ohlc"]["cn"][-1][0], "gold last", s["ohlc"]["gold"][-1][0])
+          PY
+
+      - name: 提交并推送更新
+        run: |
+          git config user.name "wb-data-bot"
+          git config user.email "wb-data-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "无数据变化, 跳过提交"
+          else
+            git commit -m "chore: 收盘快照 $(date -u +'%Y-%m-%dT%H:%MZ')"
+            git push origin HEAD:main       # ★ 写全 refspec，不依赖当前分支状态
+          fi
