@@ -1,0 +1,33 @@
+{
+  "note": "全球金矿平均全维持成本 All-in Sustaining Cost (AISC)，USD/oz。分母按年更新，不再写死。",
+  "source": "World Gold Council · Gold Focus（数据源：Metals Focus Gold Mine Cost Service）",
+  "source_url": "https://www.gold.org/goldhub/gold-focus/2026/11/gold-miners-remain-resilient-despite-tighter-margins-q226",
+  "current_year": 2026,
+  "current": 1930,
+  "as_of": "Q2",
+  "as_of_full": "2026 Q2",
+  "prev": 1785,
+  "prev_label": "2026 Q1",
+  "yoy_pct": 22.0,
+  "verified_at": "2026-11-23",
+  "next_update": "2027-01（WGC 发布 2026 全年 / 2026 Q4 数据后更新 current 与 series）",
+  "thresholds": {
+    "downgrade": 2.5,
+    "restore": 2.0,
+    "note": "比值 ≥ downgrade → 黄金目标 20% 降至 15%，差额进中短债；比值 ≤ restore → 恢复 20%"
+  },
+  "series": {
+    "2016": 900,
+    "2017": 930,
+    "2018": 980,
+    "2019": 1000,
+    "2020": 980,
+    "2021": 1068,
+    "2022": 1276,
+    "2023": 1315,
+    "2024": 1390,
+    "2025": 1600,
+    "2026": 1930
+  },
+  "series_note": "2021=1068、2022=1276 为 WGC 公布年度均值；2023/2024/2025 按季度值平滑至年度；2016-2020 为 WGC 历史季报推算值，精度 ±5%。2026 取最新已公布季度 Q2 实际值 1930（Q1 为 1785）。"
+}
